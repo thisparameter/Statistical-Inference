@@ -46,7 +46,7 @@ for(i in 1:length(symbols)){
   hilo[i] = mean((as.numeric(holddata[,c(2)]) - as.numeric(holddata[,c(3)]))/as.numeric(holddata[,c(6)]))  
   },error=function(e){})
 }
-prevvol1;
+
 
 for(i in 1:length(symbols)){
   tryCatch({
@@ -64,7 +64,7 @@ for(i in 1:length(symbols)){
   if(prevvol1[i]>stockvolavg) above_avg[i] = 1 else above_avg[i] = 0;
   },error=function(e){})
 }
-prevvol2
+
 
 main_metrics <- yahooQF(c(
   "Short Ratio",
@@ -133,25 +133,40 @@ for(i in 1:length(symbols))
 
 
 par(mfrow=c(1,1))
+
+
+
+plot_diagnostics <- function(resp, curmod, model_name = "", file_name = ""){
+  par(mfrow=c(2,2))
+  cookd = as.numeric(cooks.distance(curmod))
+  plot(cookd, xlab= "Observation", ylab = "Cook's Distance")
+  lines(c(1, length(cookd)),c(4/length(cookd), 4/length(cookd)),lwd =2, col = 2, lty =2)
+  plot(as.numeric(curmod$fitted.values),as.numeric(curmod$residuals), pch=16,xlab="Fitted Values", ylab="Residuals",cex.axis=1.3,cex.lab=1.3)
+  qqnorm(as.numeric(curmod$residuals),cex.axis=1.3,cex.lab=1.3,pch=16,main="")
+  qqline(as.numeric(curmod$residuals))
+  plot(as.numeric(curmod$fitted.values),as.numeric(resp), pch=16,xlab="Fitted Values", ylab="Actual Response",cex.axis=1.3,cex.lab=1.3)
+  abline(0,1,lwd=2,col=4)
+}
+
 #Models
 #Linear Model
 boxCox(resp~prevvol1+prevvol2+hilo+logvol+factor(above_avg)+ch200ma+ch50ma+eps+logmarcap+logshortratio)
 transresp = bcPower(resp, 0.5)
 mod1 = lm(transresp~prevvol1+prevvol2+hilo+logvol+factor(above_avg)+ch200ma+ch50ma+eps+logmarcap+logshortratio)
 summary(mod1)
-par(mfrow=c(2,2))
 plot(mod1)
 AIC(mod1)
-step(mod1)
-help(step)
 #Exhaustive Mod
 XYFrame2 = data.frame(prevvol1,prevvol2,hilo,logvol,factor(above_avg),ch200ma,ch50ma,eps,logmarcap,logshortratio,transresp)
+#XYFrame2[Reduce(`&`, lapply(XYFrame2, function(x) is.na(x)  | !is.finite(x))),] = 0
+XYFrame2 = XYFrame2[Reduce(`&`, lapply(XYFrame2, function(x) !is.na(x)  & is.finite(x))),]
 XYFrame = data.frame(prevvol1,prevvol2,hilo,logvol,factor(above_avg),transresp)
+XYFrame = XYFrame[Reduce(`&`, lapply(XYFrame, function(x) !is.na(x)  & is.finite(x))),]
 bestglmresult = bestglm(XYFrame, IC="AIC", method = "exhaustive", intercept = TRUE)  
-help(bestglm)
+
 exhaustivemod = bestglmresult$BestModel
 summary(exhaustivemod)
-plot_diagnostics(transresp,exhaustivemod)
+plot_diagnostics(XYFrame["transresp"],exhaustivemod)
 #AIC Based Stepmod
 aicmod = stepAIC(mod1)
 #Robust Regression
@@ -209,7 +224,7 @@ abline(0,1,lwd=2,col=4)
 
 #Tree Based Model
 fulltree = tree(transresp~prevvol1+prevvol2+hilo+ch200ma+ch50ma+logshortratio, mindev=0, minsize=2)
-prunedtree = prune.tree(fulltree, k=0.002, min=2)
+prunedtree = prune.tree(fulltree, k=0.002)
 plot(prunedtree)
 help(prune.tree)
 text(prunedtree, cex=0.75,digits=4)
@@ -252,21 +267,9 @@ cv.tree.full <- function (object, rand, FUN = prune.tree, K = 10, mindev=0, minc
   init$dev <- cvdev
   init
 }
-
 #Diagnostics Plot
 plot_diagnostics(transresp,exhaustivemod)
 
-plot_diagnostics <- function(resp, curmod, model_name = "", file_name = ""){
-par(mfrow=c(2,2))
-cookd = as.numeric(cooks.distance(curmod))
-plot(cookd, xlab= "Observation", ylab = "Cook's Distance")
-lines(c(1, length(cookd)),c(4/length(cookd), 4/length(cookd)),lwd =2, col = 2, lty =2)
-plot(as.numeric(curmod$fitted.values),as.numeric(curmod$residuals), pch=16,xlab="Fitted Values", ylab="Residuals",cex.axis=1.3,cex.lab=1.3)
-qqnorm(as.numeric(curmod$residuals),cex.axis=1.3,cex.lab=1.3,pch=16,main="")
-qqline(as.numeric(exhaustivemod$residuals))
-plot(as.numeric(curmod$fitted.values),as.numeric(resp), pch=16,xlab="Fitted Values", ylab="Actual Response",cex.axis=1.3,cex.lab=1.3)
-abline(0,1,lwd=2,col=4)
-}
 
 #Extra
 
