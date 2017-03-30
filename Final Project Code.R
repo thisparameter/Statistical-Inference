@@ -274,8 +274,8 @@ plot(prunedtree)
 text(prunedtree, cex=0.75,digits=4)
 cvout = cv.tree.full(fulltree)
 plot(cvout)
-optalpha = cvout$k[which.min(cvout$dev)]
-optalpha = 7
+optalpha = cvout$k[1+which.min(na.omit(cvout$dev[2:length(cvout$dev)]))]
+#optalpha = 7
 opttree = prune.tree(fulltree, k=optalpha)
 plot(opttree)
 text(opttree, cex=0.75, digits = 3)
@@ -337,5 +337,5 @@ AIC(gammod3)
 #Finishing up
 print("Saving best model");
 finalmodel = gammod3 
-save(finalmodel, file="Abhatna1_Models.Robj");
-print("done");
+save(finalmodel, file="Abhatna1_Models.Robj")
+print("done")
