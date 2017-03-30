@@ -6,16 +6,23 @@ library(car)
 library(mgcv)
 library(bestglm)
 library(tree)
+#rm(list = ls()) #clear workspace
 SymbolList = read.table("http://www.stat.cmu.edu/~cschafer/MSCF/Project/ChallengeSymbols2015.txt")
 Longlistall = read.csv("https://s3.amazonaws.com/quandl-static-content/Ticker+CSV%27s/Indicies/SP500.csv")
 Longlist = Longlistall[,1]
 symbols = Longlist
+newsymblist = list() 
 symbols2 = data.frame()
 # Code for modelling
 SymbolList2 = data.frame(SymbolList)
 SymbolList2 = SymbolList2[-5,]
-
-
+for(i in 1:length(symbols)){
+  tryCatch({
+    holddata1 = getSymbols(as.character(symbols[i]), from=Sys.Date()-61, to=Sys.Date()-31, auto.assign=F)  
+    newsymblist[length(newsymblist)+1] = as.character(symbols[i])
+  },error=function(e){})  
+}
+symbols = unlist(newsymblist)
 prevvol1 = numeric(length(symbols))
 prevvol2 = numeric(length(symbols))
 logvol = numeric(length(symbols))
@@ -28,9 +35,12 @@ resp = numeric(length(symbols))
 for(i in 1:length(symbols)){
   tryCatch({holddata1 = getSymbols(as.character(symbols[i]), from=Sys.Date()-61, to=Sys.Date()-31, auto.assign=F)  
   resp[i] = sqrt(mean(dailyReturn(Ad(holddata1),type="log")^2))
-  },error=function(e){resp[i]=0})  
+  newsymblist = c(newsymblist,symbols[i])
+  },error=function(e){
+    print (e);
+    resp[i]=0;})  
 }
-resp
+#resp
 
 for(i in 1:length(symbols)){
   tryCatch({
@@ -53,15 +63,15 @@ for(i in 1:length(symbols)){
     if(is.na(prevvol1[i])){prevvol1[i]=0}
     if(is.na(logvol[i])){logvol[i]=0}
     if(is.na(hilo[i])){hilo[i]=0}
-    },error=function(e){prevvol1[i]=0})
+  },error=function(e){prevvol1[i]=0})
 }
 
 stockvolavg = mean(prevvol1);
 for(i in 1:length(symbols)){
   tryCatch({
-  holddata2 = getSymbols(as.character(symbols[i]), from=(Sys.Date()-91), to=Sys.Date()-61, auto.assign=F);
-  prevvol2[i] = sqrt(mean(dailyReturn(Ad(holddata2),type="log")^2));
-  if(prevvol1[i]>stockvolavg) above_avg[i] = 1 else above_avg[i] = 0;
+    holddata2 = getSymbols(as.character(symbols[i]), from=(Sys.Date()-91), to=Sys.Date()-61, auto.assign=F);
+    prevvol2[i] = sqrt(mean(dailyReturn(Ad(holddata2),type="log")^2));
+    if(prevvol1[i]>stockvolavg) above_avg[i] = 1 else above_avg[i] = 0;
   },error=function(e){})
 }
 
@@ -72,11 +82,11 @@ main_metrics <- yahooQF(c(
   "Percent Change From 200-day Moving Average", 
   "Earnings/Share",
   "Market Capitalization"
-  ))
+))
 metrics <- getQuote(paste(symbols, sep="", collapse=";"), what=main_metrics, start=Sys.Date()-30)
 metrics = data.frame(metrics[,-1])
 marcapmetrics = data.frame(metrics[,5])
-names(metrics[5])
+
 MarCap=numeric(length(symbols))
 for(i in 1:length(symbols))
 { tryCatch({
@@ -89,8 +99,8 @@ for(i in 1:length(symbols))
   } else {num_val = 0}
   
   MarCap[i]=num_val
- }, error=function(e){num_val =0
-                      MarCap[i]=num_val    })
+}, error=function(e){num_val =0
+MarCap[i]=num_val    })
 }
 logmarcap= log(MarCap+1)
 
@@ -98,9 +108,9 @@ shortratiometrics = data.frame(metrics[,1])
 Shortratio=numeric(length(symbols))
 for(i in 1:length(symbols))
 { string_val = shortratiometrics[i,1]
-  if(string_val=="N/A"){num_val=0
-  } else{num_val = as.numeric(substr(string_val,1,stri_length(string_val)-1))}
-  Shortratio[i] = num_val
+if(string_val=="N/A"){num_val=0
+} else{num_val = as.numeric(substr(string_val,1,stri_length(string_val)-1))}
+Shortratio[i] = num_val
 }
 logshortratio= log(Shortratio+1)
 
@@ -108,29 +118,31 @@ ch50mametrics = data.frame(metrics[,2])
 ch50ma=numeric(length(symbols))
 for(i in 1:length(symbols))
 { string_val = ch50mametrics[i,1]
-  if(string_val=="N/A"){num_val=0
-  } else{num_val = as.numeric(substr(string_val,1,stri_length(string_val)-1))}
-  ch50ma[i] = num_val
+if(string_val=="N/A"){num_val=0
+} else{num_val = as.numeric(substr(string_val,1,stri_length(string_val)-1))}
+ch50ma[i] = num_val
 }
 
 ch200mametrics = data.frame(metrics[,3])
 ch200ma=numeric(length(symbols))
 for(i in 1:length(symbols))
 { string_val = ch200mametrics[i,1]
-  if(string_val=="N/A"){num_val=0
-  } else{num_val = as.numeric(substr(string_val,1,stri_length(string_val)-1))}
-  ch200ma[i] = num_val
+if(string_val=="N/A"){num_val=0
+} else{num_val = as.numeric(substr(string_val,1,stri_length(string_val)-1))}
+ch200ma[i] = num_val
 }
 
 epsmetrics = data.frame(metrics[,4])
 eps=numeric(length(symbols))
 for(i in 1:length(symbols))
 { string_val = epsmetrics[i,1]
-  if(string_val=="N/A"){num_val=0
-  } else{num_val = as.numeric(substr(string_val,1,stri_length(string_val)-1))}
-  eps[i] = num_val
+if(string_val=="N/A"){num_val=0
+} else{num_val = as.numeric(substr(string_val,1,stri_length(string_val)-1))}
+eps[i] = num_val
 }
-
+totalframe = data.frame(resp,prevvol1,prevvol2,hilo,logvol,above_avg,
+  ch200ma,ch50ma,eps,logmarcap,logshortratio)
+totalframe = na.omit(totalframe)
 
 par(mfrow=c(1,1))
 
@@ -150,49 +162,80 @@ plot_diagnostics <- function(resp, curmod, model_name = "", file_name = ""){
 
 #Models
 #Linear Model
-boxCox(resp~prevvol1+prevvol2+hilo+logvol+factor(above_avg)+ch200ma+ch50ma+eps+logmarcap+logshortratio)
-transresp = bcPower(resp, 0.5)
-mod1 = lm(transresp~prevvol1+prevvol2+hilo+logvol+factor(above_avg)+ch200ma+ch50ma+eps+logmarcap+logshortratio)
+boxCox(resp~prevvol1+prevvol2+hilo+logvol+factor(above_avg)+ch200ma+ch50ma+eps+logmarcap+logshortratio,data = totalframe)
+transresp = bcPower(totalframe$resp, 0.5)
+totalframe$transresp = transresp
+
+mod1 = lm(transresp~prevvol1+prevvol2+hilo+logvol+factor(above_avg)+ch200ma+ch50ma+eps+logmarcap+logshortratio, data = totalframe)
 summary(mod1)
-plot(mod1)
+#plot(mod1)
 AIC(mod1)
 #Exhaustive Mod
-XYFrame2 = data.frame(prevvol1,prevvol2,hilo,logvol,factor(above_avg),ch200ma,ch50ma,eps,logmarcap,logshortratio,transresp)
+XYFrame2 = data.frame(totalframe$prevvol1,totalframe$prevvol2,totalframe$hilo,totalframe$logvol,factor(totalframe$above_avg),totalframe$ch200ma,totalframe$ch50ma,totalframe$eps,totalframe$logmarcap,totalframe$logshortratio,totalframe$transresp)
 #XYFrame2[Reduce(`&`, lapply(XYFrame2, function(x) is.na(x)  | !is.finite(x))),] = 0
 XYFrame2 = XYFrame2[Reduce(`&`, lapply(XYFrame2, function(x) !is.na(x)  & is.finite(x))),]
-XYFrame = data.frame(prevvol1,prevvol2,hilo,logvol,factor(above_avg),transresp)
+
+XYFrame = totalframe[c("prevvol1","prevvol2","hilo","logvol","above_avg","transresp")]
+XYFrame$above_avg = factor(XYFrame$above_avg)
 XYFrame = XYFrame[Reduce(`&`, lapply(XYFrame, function(x) !is.na(x)  & is.finite(x))),]
 bestglmresult = bestglm(XYFrame, IC="AIC", method = "exhaustive", intercept = TRUE)  
-
+#totalframe[c("prevvol1","prevvol2","hilo")]#,logvol,factor(above_avg),transresp)]
 exhaustivemod = bestglmresult$BestModel
 summary(exhaustivemod)
-plot_diagnostics(XYFrame["transresp"],exhaustivemod)
+#plot(as.numeric(exhaustivemod$fitted.values),as.numeric(XYFrame[["transresp"]]), pch=16,xlab="Fitted Values", ylab="Actual Response",cex.axis=1.3,cex.lab=1.3)
+plot_diagnostics(XYFrame[["transresp"]],exhaustivemod)
+
 #AIC Based Stepmod
 aicmod = stepAIC(mod1)
+summary(aicmod)
 #Robust Regression
-robmod = rlm(transresp~prevvol1+hilo+logmarcap+logshortratio)
+robmod = rlm(transresp~prevvol1+hilo+logmarcap+logshortratio+factor(above_avg), data = totalframe, maxit = 100)
 summary(robmod)
 AIC(robmod)
 AIC(exhaustivemod)
 
+plot(robmod)
+autoplot(mod1, which = 1:6, ncol = 3, label.size = 3)
 #General Additive Models
-gammod = gam(transresp~s(prevvol1)+s(prevvol2)+s(hilo)+s(logvol)+factor(above_avg)+s(ch200ma)+s(ch50ma)+s(eps)+s(logmarcap)+s(logshortratio))
+gammod = gam(transresp~s(prevvol1)+s(prevvol2)+s(hilo)+s(logvol)+factor(above_avg)+s(ch200ma)+s(ch50ma)+s(eps)+s(logmarcap)+s(logshortratio), data = totalframe)
 summary(gammod)
-gammod2 = gam(transresp~s(prevvol1)+s(prevvol2)+s(hilo)+s(ch200ma)+s(ch50ma)+s(logshortratio))
+par(mfrow=c(3,3))
+plot(gammod, pages =1, scale=0,scheme=1)
+par(mfrow=c(1,1))
+gammod2 = gam(transresp~s(prevvol1)+s(prevvol2)+s(hilo)+s(ch200ma)+s(ch50ma)+s(logshortratio),data=totalframe)
 summary(gammod2)
 AIC(gammod)
 AIC(gammod2)
-plot(gammod2, pages =2, scale=0,scheme=1)
-gammod3 = gam(transresp~s(prevvol1)+s(prevvol2)+hilo+s(ch200ma)+s(ch50ma)+s(logshortratio))
-plot(gammod3, pages =2, scale=0,scheme=1)
+
+plot(gammod2, pages =1, scale=0,scheme=1)
+
+gammod3 = gam(transresp~s(prevvol1)+s(prevvol2)+hilo+s(ch200ma)+s(ch50ma)+s(logshortratio), data = totalframe)
+plot(gammod3, pages =1, scale=0,scheme=1)
 AIC(gammod3)
 summary(gammod3)
 deviance(gammod3)
 sum(gammod3$edf)
-plot_diagnostics(transresp, gammod3)
+plot_diagnostics(totalframe[["transresp"]], gammod3)
+plot_diagnostics(totalframe[["transresp"]], gammod)
 
 #PPR Model and crossvalidation
-source("http://www.stat.cmu.edu/~cschafer/MSCF/CVforppr.R")
+#source("http://www.stat.cmu.edu/~cschafer/MSCF/CVforppr.R")
+CVforppr = function(model, numfolds, nterms, data=model.frame(model),...)
+{
+  fold = sample(rep(1:numfolds, length.out = nrow(data)))
+  
+  testerr = numeric(numfolds)
+  
+  for(i in 1:numfolds)
+  {
+    holdppr = ppr(model, data=data[which(fold!=i),], nterms=nterms,...)
+    testpreds = predict(holdppr, newdata=data[which(fold==i),])
+    testresp = data[which(fold==i), which(names(data)==all.vars(model)[1])]
+    testerr[i] = sum((testpreds - testresp)^2) 
+  }
+  return(sum(testerr))
+}
+
 modelformula = transresp ~ prevvol1 + prevvol2 + hilo + ch200ma + ch50ma + logshortratio
 pprCV = matrix(0,nrow=10,ncol=4)
 for(j in 1:ncol(pprCV))
@@ -200,7 +243,7 @@ for(j in 1:ncol(pprCV))
   set.seed(j)
   for(i in 1:nrow(pprCV))
   {
-    pprCV[i,j] = CVforppr(modelformula, nterms=i, numfolds=10, 
+    pprCV[i,j] = CVforppr(modelformula, data = totalframe,nterms=i, numfolds=10, 
                           sm.method="gcvspline")
   }
 }
@@ -213,30 +256,32 @@ for(j in 1:ncol(pprCV))
   points(1:nrow(pprCV),pprCV[,j],pch=16)
 }
 
-pprmod = ppr(transresp~prevvol1+prevvol2+hilo+ch200ma+ch50ma+logshortratio,nterms=4,sm.method="gcvspline")
-par(mfrow=c(1,2))
+pprmod = ppr(transresp~prevvol1+prevvol2+hilo+ch200ma+ch50ma+logshortratio,nterms=4,sm.method="gcvspline", data = totalframe)
+par(mfrow=c(2,2))
 plot(pprmod)
 summary(pprmod)
 complexity_ppr = sum(pprmod$edf) + length(pprmod$beta) + length(pprmod$alpha)+1
 plot(pprmod$fit, pprmod$residuals, xlab="Fitted Values", ylab="Residuals",cex.axis=1.3,cex.lab=1.3,pch=16,cex=0.7)
+plot_diagnostics(totalframe[["transresp"]], pprmod)
 plot(predict(pprmod),transresp,pch=16,cex=0.7,xlab="Predicted Value",ylab="Actual Response", cex.axis=1.3,cex.lab=1.3)
 abline(0,1,lwd=2,col=4)
 
 #Tree Based Model
-fulltree = tree(transresp~prevvol1+prevvol2+hilo+ch200ma+ch50ma+logshortratio, mindev=0, minsize=2)
+fulltree = tree(transresp~prevvol1+prevvol2+hilo+ch200ma+ch50ma+logshortratio, mindev=0, minsize=2, data = totalframe)
 prunedtree = prune.tree(fulltree, k=0.002)
 plot(prunedtree)
-help(prune.tree)
+#help(prune.tree)
 text(prunedtree, cex=0.75,digits=4)
 cvout = cv.tree.full(fulltree)
 plot(cvout)
 optalpha = cvout$k[which.min(cvout$dev)]
+optalpha = 7
 opttree = prune.tree(fulltree, k=optalpha)
 plot(opttree)
 text(opttree, cex=0.75, digits = 3)
 summary(opttree)
 summary(prunedtree)
-opttree$
+opttree$x
 par(mfrow=c(1,1))
 plot(as.numeric(predict(prunedtree)),as.numeric(transresp), pch=16,xlab="Fitted Values", ylab="Actual Response",cex.axis=1.3,cex.lab=1.3)
 abline(0,1,lwd=2,col=4)
